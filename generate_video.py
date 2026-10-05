@@ -34,7 +34,8 @@ THEME = {
 }
 
 WIDTH, HEIGHT = 800, 450
-FRAME_MS = 750
+FPS = 15
+FRAME_MS = int(1000 / FPS)
 
 _FONT_DIRS = [
     Path(os.environ.get("ASSETS_FONT_DIR", ".")) / "fonts",
@@ -191,7 +192,7 @@ class RepoVideoGenerator:
     # ----------------------------------------------------------------- frame
     def create_frame(self, text: str, kicker: str = "", sub: str = "",
                      frame_num: int = 0, total: int = 10,
-                     kind: str = "scene") -> Image.Image:
+                     kind: str = "scene", anim_t: float = 1.0) -> Image.Image:
         t = frame_num / max(1, total - 1)
         hot = kind == "win"
         img = background(t, hot)
@@ -202,8 +203,15 @@ class RepoVideoGenerator:
         kick_f = _font(THEME["kicker_size"], "kicker")
         accent = THEME["win"] if hot else THEME["accent"]
 
+        # Slide-in animation offset based on anim_t (ease out curve)
+        ease_t = 1.0 - pow(1.0 - anim_t, 3)
+        slide_y = int((1.0 - ease_t) * 30)
+        
+        # We handle fade-in by returning an image which we'll alpha composite later if we wanted to,
+        # but for simplicity, we'll just slide in the text elements smoothly.
+
         # kicker eyebrow
-        y = HEIGHT // 2 - 96
+        y = HEIGHT // 2 - 96 + slide_y
         if kicker:
             kw = d.textlength(kicker.upper(), font=kick_f)
             d.text(((WIDTH - kw) / 2, y), kicker.upper(), fill=accent, font=kick_f)
@@ -217,7 +225,7 @@ class RepoVideoGenerator:
             title_f = _font(size, "impact")
         lines = _wrap(d, text, title_f, WIDTH - 90)
         line_h = size + 12
-        y = (HEIGHT - 120) // 2 - (len(lines) - 1) * line_h // 2 + 12
+        y = (HEIGHT - 120) // 2 - (len(lines) - 1) * line_h // 2 + 12 + slide_y
         for ln in lines:
             lw = d.textlength(ln, font=title_f)
             d.text(((WIDTH - lw) / 2 + 3, y + 3), ln, fill=THEME["shadow"], font=title_f)
@@ -228,14 +236,16 @@ class RepoVideoGenerator:
         # accent underline
         uw = min(WIDTH // 3, max(120, int(max(d.textlength(l, font=title_f)
                                               for l in lines))))
-        d.rectangle([(WIDTH - uw) / 2, y + 8, (WIDTH + uw) / 2, y + 12], fill=accent)
+        uw = int(uw * ease_t) # Animate width of the underline
+        if uw > 0:
+            d.rectangle([(WIDTH - uw) / 2, y + 8, (WIDTH + uw) / 2, y + 12], fill=accent)
 
         # subtitle
         if sub:
             sw = d.textlength(sub, font=sub_f)
             d.text(((WIDTH - sw) / 2, y + 26), sub, fill=THEME["muted"], font=sub_f)
 
-        # footer: progress + bar
+        # footer: progress + bar (no vertical slide for footer)
         prog = f"{frame_num + 1}/{total}"
         d.text((12, HEIGHT - 36), prog, fill=THEME["muted"], font=sub_f)
         d.rectangle([12, HEIGHT - 14, WIDTH - 12, HEIGHT - 10],
@@ -248,10 +258,10 @@ class RepoVideoGenerator:
     # -------------------------------------------------------------- slideshow
     def create_slideshow_images(self, info: Dict) -> List[Image.Image]:
         frames: List[Image.Image] = []
-        plan: List[tuple] = []          # (text, kicker, sub, n_frames, kind)
+        plan: List[tuple] = []          # (text, kicker, sub, duration_sec, kind)
 
         title = info["name"].replace("-", " ").replace("_", " ").title()
-        plan.append((title, "logo reveal", "your project", 3, "scene"))
+        plan.append((f"Introducing\n{title}", "welcome", "the next big thing", 2.5, "scene"))
 
         # WIN CENTERPIECE — the single strongest claim
         head = None
@@ -261,38 +271,41 @@ class RepoVideoGenerator:
             head = info["features"][0]
         elif info["description"]:
             head = info["description"][:80]
-        plan.append((head or title, "critical hit", "the headline win", 4, "win"))
+        plan.append((head or title, "critical hit", "why this matters", 3.0, "win"))
 
         desc = info["description"]
         if len(desc) > 110:
             desc = desc[:107].rstrip() + "..."
-        plan.append((desc or "Built to solve real problems.", "log line",
-                     "what it does", 3, "scene"))
+        plan.append((desc or "Built to solve real problems efficiently.", "the core",
+                     "what it does", 3.0, "scene"))
 
-        feats = info["features"][:5] or ["Packed with useful features"]
+        feats = info["features"][:5] or ["Packed with useful and powerful features"]
         for i, f in enumerate(feats):
             plan.append((f if len(f) <= 70 else f[:67] + "...",
-                         f"feature {i + 1}", "why it wins", 1, "scene"))
+                         f"feature {i + 1}", "empowering your workflow", 2.0, "scene"))
 
         stack = ", ".join(info["tech_stack"][:4]) or "Modern, clean toolchain"
-        plan.append((stack, "built with", "the stack", 2, "scene"))
+        plan.append((stack, "built with", "powered by the best", 2.5, "scene"))
 
         # community proof
         if len(info["stats"]) > 1:
             proof = "  ·  ".join(f"{v} {lbl}" for v, lbl in info["stats"][:3])
         else:
             proof = "Open source  ·  Community driven"
-        plan.append((proof, "community", "the proof", 2, "scene"))
+        plan.append((proof, "community", "trusted by developers", 2.5, "scene"))
 
-        plan.append(("Star it. Fork it. Ship it.", "join us",
-                     "see it on GitHub", 2, "scene"))
+        plan.append(("Star it. Fork it. Ship it.", "ready to dive in?",
+                     "see it on GitHub", 3.0, "scene"))
 
-        total = sum(p[3] for p in plan)
+        total_scenes = len(plan)
         n = 0
-        for text, kicker, sub, count, kind in plan:
-            for _ in range(count):
-                frames.append(self.create_frame(text, kicker, sub, n, total, kind))
-                n += 1
+        for text, kicker, sub, duration_sec, kind in plan:
+            scene_frames = int(duration_sec * FPS)
+            for i in range(scene_frames):
+                # Animate in over the first 0.5 seconds
+                anim_t = min(1.0, i / (0.5 * FPS))
+                frames.append(self.create_frame(text, kicker, sub, n, total_scenes, kind, anim_t=anim_t))
+            n += 1
         return frames
 
     # ------------------------------------------------------------------ out
