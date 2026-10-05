@@ -1,0 +1,8 @@
+# Brag video (local)
+source: ../..
+style: brag
+frame_rate: 24
+total_duration_s: 42
+frames_dir: C:\Users\npoor\repo-video-generator\video-service\video-output\.1_frames_frames_-8929296821542069375
+audio_dir: C:\Users\npoor\repo-video-generator\video-service\video-output\audio
+NOTE: ffmpeg -framerate 24 -f image2 -i C:\Users\npoor\repo-video-generator\video-service\video-output\.1_frames_frames_-8929296821542069375/f_%05d.jpg -i C:\Users\npoor\repo-video-generator\video-service\video-output\audio/seg_*.mp3 -c:v libx264 -c:a aac -shortest C:\Users\npoor\repo-video-generator\video-service\video-output\1.mp4

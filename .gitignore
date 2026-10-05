@@ -1,0 +1,5 @@
+node_modules/
+brag-output/
+.pytest_cache/
+__pycache__/
+.venv/

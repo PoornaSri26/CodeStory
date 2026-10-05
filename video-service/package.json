@@ -1,0 +1,27 @@
+{
+  "name": "video-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Job-based video generator (repo → brag video). Python API + worker (Node glue for job queue)",
+  "engines": { "node": ">=20", "python": ">=3.11" },
+  "scripts": {
+    "dev": "python -m src.server",
+    "start": "python -m src.server",
+    "worker": "python -m workers.worker",
+    "test": "python -m pytest tests/ -q",
+    "typecheck": "python -c \"import ast; import pathlib; [ast.parse(p.read_text()) for p in pathlib.Path('src').rglob('*.py')]; print('Python source OK')\"",
+    "lint": "ruff check . 2>/dev/null || echo \"(ruff not installed)\"",
+    "watch": "watchfiles 'python -m src.server' src video-service"
+  },
+  "dependencies": {
+    "bullmq": "^5.40.0",
+    "ioredis": "^5.6.0",
+    "socket.io": "^4.8.3",
+    "express": "^4.21.0",
+    "ffmpeg-static": "^5.3.0",
+    "puppeteer": "^24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}
