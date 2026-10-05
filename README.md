@@ -1,4 +1,4 @@
-# Video Generation Server
+# Repo to Video Generator
 
 A standalone, job-based video generator that turns any GitHub repository (or a local source path) into a **brag-style** promotional video: a styled "win centerpiece" that highlights the repository's biggest win, followed by a narrated scene-by-scene walkthrough of README, features, tech stack, and a call-to-action. Built as a production-style worker with a REST API, async queue, and real-time WebSocket progress streaming.
 
